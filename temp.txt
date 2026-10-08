@@ -1,0 +1,83 @@
+INSERT INTO "Instructors"
+("userId", "departmentId", "employeeCode", "designation", "status", "createdAt", "updatedAt")
+VALUES
+(
+  2,
+  (SELECT "id" FROM "Departments" WHERE "code" = 'CSE'),
+  'EMP001',
+  'Assistant Professor',
+  'ACTIVE',
+  NOW(),
+  NOW()
+);
+
+
+
+INSERT INTO "Instructors"
+("userId", "departmentId", "employeeCode", "designation", "status", "createdAt", "updatedAt")
+VALUES
+(
+  3,
+  (SELECT "id" FROM "Departments" WHERE "code" = 'CSE'),
+  'EMP001',
+  'Assistant Professor',
+  'ACTIVE',
+  NOW(),
+  NOW()
+);
+
+node -e "const bcrypt=require('bcryptjs'); bcrypt.hash('Test@123',12).then(console.log)"
+
+Test@123 = $2b$12$/gKXNpN5R9pqUyv0r9yD8.v.Sc/wIkMnk2cIP9jWcx0t2/8vuHR22
+
+
+INSERT INTO "Users"
+("name", "email", "passwordHash", "roleId", "status", "createdAt", "updatedAt")
+VALUES
+(
+  'Super Admin',
+  'superadmin@gmail.com',
+  '$2b$12$/gKXNpN5R9pqUyv0r9yD8.v.Sc/wIkMnk2cIP9jWcx0t2/8vuHR22',
+  (SELECT "id" FROM "Roles" WHERE "name" = 'SUPER_ADMIN'),
+  'ACTIVE',
+  NOW(),
+  NOW()
+),
+(
+  'Admin User',
+  'admin@gmail.com',
+  '$2b$12$/gKXNpN5R9pqUyv0r9yD8.v.Sc/wIkMnk2cIP9jWcx0t2/8vuHR22',
+  (SELECT "id" FROM "Roles" WHERE "name" = 'ADMIN'),
+  'ACTIVE',
+  NOW(),
+  NOW()
+);
+
+
+Method	Endpoint	Purpose
+POST	/api/semesters	Create semester
+GET	/api/semesters	Get all semesters
+GET	/api/semesters/:id	Get one semester
+PUT	/api/semesters/:id	Update semester details
+PATCH	/api/semesters/:id/open	Open semester
+PATCH	/api/semesters/:id/close	Close semester
+DELETE	/api/semesters/:id	Delete unused semester
+
+
+
+
+
+
+
+
+
+
+
+Action	SUPER_ADMIN	ADMIN	INSTRUCTOR	STUDENT
+View all enrollments	✅	✅	❌	❌
+Create enrollment for any student	✅	✅	❌	❌
+Update enrollment	✅	✅	❌	❌
+Drop any enrollment	✅	✅	❌	❌
+View own enrollments	❌*	❌*	❌	✅
+Enroll self	❌*	❌*	❌	✅
+Drop own enrollment	❌*	❌*	❌	✅

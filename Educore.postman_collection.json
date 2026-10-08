@@ -1,0 +1,813 @@
+{
+  "info": {
+    "_postman_id": "4a1fc223-cef9-4b0d-81fa-0bf3b4ab7345",
+    "name": "Educore",
+    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58757217",
+    "_collection_link": "https://go.postman.co/collection/58757217-4a1fc223-cef9-4b0d-81fa-0bf3b4ab7345?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Test RBAS",
+      "item": []
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "login",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"aman@gmail.com\",\r\n  \"password\": \"Test@123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "refresh",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTI4NTA3OCwiZXhwIjoxNzkxMjg1OTc4fQ.60fAHW6py-vpFpqhwwK1FRQt896m5MY3DtB1Otl5bqk",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/auth/refresh",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/auth/logout",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Course",
+      "item": [
+        {
+          "name": "All courses",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTI4NDAzOSwiZXhwIjoxNzkxMjg0OTM5fQ.52eWW3xTVDQa5YyWj9O6q6OfstGOKXsO5ts2SLyL9p4",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/courses/catalog",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "courses",
+                "catalog"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create course",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwicm9sZUlkIjoiMSIsImlhdCI6MTc5MTM1ODMyMiwiZXhwIjoxNzkxMzU5MjIyfQ.7duCBP0_8NdeKnmwAJ1fyZrBQh6jph4MubEvFRjSzCU",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"departmentId\": 1,\r\n  \"code\": \"CS101\",\r\n  \"name\": \"Introduction to Python\",\r\n  \"credits\": 4,\r\n  \"capacity\": 60\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/courses",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "courses"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Course",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwicm9sZUlkIjoiMyIsImlhdCI6MTc5MTM1NjE1MSwiZXhwIjoxNzkxMzU3MDUxfQ.b9JUuL-craMrJw8sUpY6oI6C8SQLpBVuK9uPkHllzjg",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"instructorId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/courses/1/instructors",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "courses",
+                "1",
+                "instructors"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View Assigned Course",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwicm9sZUlkIjoiMyIsImlhdCI6MTc5MTM2NjM5OSwiZXhwIjoxNzkxMzY3Mjk5fQ.HDhFfFLpMQVXIbvF2aZlZOu8DiG08-XGIorQIomcxG4",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/courses/instructors/me/courses",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "courses",
+                "instructors",
+                "me",
+                "courses"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Assigned Course",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTM2NjU0MywiZXhwIjoxNzkxMzY3NDQzfQ.cTo2lYmgO_TcfAcEgtmpAs-eERbEOwXiXEN2p0p3o1o",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/courses/1/instructors/2",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "courses",
+                "1",
+                "instructors",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Semester",
+      "item": [
+        {
+          "name": "All semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM2ODUyMiwiZXhwIjoxNzkxMzY5NDIyfQ.6qFOwFse28Z7LFW4gz4_W10GCH0fXEwrbuyW7fq7AsU",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/semesters",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTM2OTMzNywiZXhwIjoxNzkxMzcwMjM3fQ.wFsHc5bUbohj4SCyZmim_MDFI_fJx9ctCmLZ5p_kAKg",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Semester 1\",\r\n  \"academicYear\": \"2026-27\",\r\n  \"startDate\": \"2026-07-01\",\r\n  \"endDate\": \"2026-11-30\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/semesters",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get One Semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM2ODUyMiwiZXhwIjoxNzkxMzY5NDIyfQ.6qFOwFse28Z7LFW4gz4_W10GCH0fXEwrbuyW7fq7AsU",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/semesters/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM2ODkwNywiZXhwIjoxNzkxMzY5ODA3fQ.TI2B2fN51TU2x9HRG-YeMnNz3d_jtrgBlwwbgjjtD2o",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Semester 1\",\r\n  \"academicYear\": \"2026-27\",\r\n  \"startDate\": \"2026-07-01\",\r\n  \"endDate\": \"2026-12-15\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/semesters/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Open Semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM2ODkwNywiZXhwIjoxNzkxMzY5ODA3fQ.TI2B2fN51TU2x9HRG-YeMnNz3d_jtrgBlwwbgjjtD2o",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/semesters/1/open",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters",
+                "1",
+                "open"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Close Semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM2OTIzMSwiZXhwIjoxNzkxMzcwMTMxfQ.dR5_QjxN46nxe42occAfB8QgBpIZwj1bgJvolH0K4Bk",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/semesters/1/close",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters",
+                "1",
+                "close"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Semester",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM2OTIzMSwiZXhwIjoxNzkxMzcwMTMxfQ.dR5_QjxN46nxe42occAfB8QgBpIZwj1bgJvolH0K4Bk",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/semesters/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "semesters",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Enrollment",
+      "item": [
+        {
+          "name": "Create Enrollment",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "All enrollments",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM3Nzk5MywiZXhwIjoxNzkxMzc4ODkzfQ.U9kv8B_u5cZsaD0mbrhQMp36JlL-ESKRLAccfXTQs2Q",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "One Enrollment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM3ODA1NywiZXhwIjoxNzkxMzc4OTU3fQ.qloYuGxb6f7d986qrj8blBBEWOOrWXp4SyUz_gRxFRQ",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update enrollment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM3ODExNSwiZXhwIjoxNzkxMzc5MDE1fQ.DQCQbC-EGiQxYJDmBpOqCAnjswjU05DxrRbx5Rb6MRM",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"courseId\": 1,\r\n  \"semesterId\": 2,\r\n  \"enrollmentDate\": \"2026-10-07\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Drop enrollment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZUlkIjoiMiIsImlhdCI6MTc5MTM3ODIxMywiZXhwIjoxNzkxMzc5MTEzfQ.EmKKfY3iG24PFXJ55n0t3enxG5eHizhjAAePIBvwZCw",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/1/drop",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "1",
+                "drop"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Self-enroll",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTM3ODI4MCwiZXhwIjoxNzkxMzc5MTgwfQ._luT0TiBTLSqbslEvaVjR6ZOldXNg3ZhPEmtJfEiHps",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"courseId\": 1,\r\n  \"semesterId\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/me",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View own enrollments",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTM3ODUwMSwiZXhwIjoxNzkxMzc5NDAxfQ.vve2ZG1LtHN1QxFOwwlhqfglenbnYQRW3t6C8qp0aJ0",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/me",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View one own enrollment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTM3ODU4MCwiZXhwIjoxNzkxMzc5NDgwfQ.J_4MMdGy0DRkucBzKa3S59-G0t_w1HgAuY7Uv0Yf8bc",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/me/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "me",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Drop own enrollment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZUlkIjoiNCIsImlhdCI6MTc5MTM3ODU4MCwiZXhwIjoxNzkxMzc5NDgwfQ.J_4MMdGy0DRkucBzKa3S59-G0t_w1HgAuY7Uv0Yf8bc",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/enrollments/me/1/drop",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "enrollments",
+                "me",
+                "1",
+                "drop"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
