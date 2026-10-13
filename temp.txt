@@ -26,9 +26,10 @@ VALUES
   NOW()
 );
 
-node -e "const bcrypt=require('bcryptjs'); bcrypt.hash('Test@123',12).then(console.log)"
+node -e "const bcrypt=require('bcryptjs'); bcrypt.hash(process.env.SEED_USER_PASSWORD,12).then(console.log)"
 
-Test@123 = $2b$12$/gKXNpN5R9pqUyv0r9yD8.v.Sc/wIkMnk2cIP9jWcx0t2/8vuHR22
+The dev login password is whatever SEED_USER_PASSWORD holds in .env.
+Its bcrypt hash, as inserted below: <bcrypt-hash-of-SEED_USER_PASSWORD>
 
 
 INSERT INTO "Users"
@@ -37,7 +38,7 @@ VALUES
 (
   'Super Admin',
   'superadmin@gmail.com',
-  '$2b$12$/gKXNpN5R9pqUyv0r9yD8.v.Sc/wIkMnk2cIP9jWcx0t2/8vuHR22',
+  '<bcrypt-hash-of-SEED_USER_PASSWORD>',
   (SELECT "id" FROM "Roles" WHERE "name" = 'SUPER_ADMIN'),
   'ACTIVE',
   NOW(),
@@ -46,7 +47,7 @@ VALUES
 (
   'Admin User',
   'admin@gmail.com',
-  '$2b$12$/gKXNpN5R9pqUyv0r9yD8.v.Sc/wIkMnk2cIP9jWcx0t2/8vuHR22',
+  '<bcrypt-hash-of-SEED_USER_PASSWORD>',
   (SELECT "id" FROM "Roles" WHERE "name" = 'ADMIN'),
   'ACTIVE',
   NOW(),
@@ -65,8 +66,7 @@ DELETE	/api/semesters/:id	Delete unused semester
 
 
 
-
-
+new-Item createEnrollmentService.js,getEnrollmentsService.js ,getEnrollmentByIdService.js , updateEnrollmentService.js,dropEnrollmentService.js,getMyEnrollmentsService.js, getMyEnrollmentByIdService.js createMyEnrollmentService.js,dropMyEnrollmentService.js
 
 
 

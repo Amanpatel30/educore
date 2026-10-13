@@ -34,8 +34,9 @@ import {
   dropMyEnrollment,
 } from "../services/enrollment/dropMyEnrollmentService.js";
 
-import { ok, created } from "../utils/response.js";
+import { ok, created, okList } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { getPagination } from "../utils/pagination.js";
 
 /*
  * ADMIN / SUPER_ADMIN
@@ -55,12 +56,11 @@ export const createEnrollmentController = asyncHandler(
 
 export const getEnrollmentsController = asyncHandler(
   async (req, res) => {
-    const enrollments = await getEnrollments();
+    const pagination = getPagination(req.query);
 
-    return ok(res, {
-      count: enrollments.length,
-      enrollments,
-    });
+    const result = await getEnrollments(pagination);
+
+    return okList(res, "enrollments", result, pagination);
   }
 );
 
@@ -127,14 +127,14 @@ export const createMyEnrollmentController = asyncHandler(
 
 export const getMyEnrollmentsController = asyncHandler(
   async (req, res) => {
-    const enrollments = await getMyEnrollments(
-      req.user.id
+    const pagination = getPagination(req.query);
+
+    const result = await getMyEnrollments(
+      req.user.id,
+      pagination
     );
 
-    return ok(res, {
-      count: enrollments.length,
-      enrollments,
-    });
+    return okList(res, "enrollments", result, pagination);
   }
 );
 

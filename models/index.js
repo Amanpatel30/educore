@@ -32,8 +32,14 @@ const config = JSON.parse(fs.readFileSync(configPath, "utf-8"))[env];
 
 let sequelize;
 
+// Set SQL_LOGGING=true to print every statement.
+const logging = process.env.SQL_LOGGING === "true";
+
 if (config.use_env_variable) {
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
+  sequelize = new Sequelize(process.env[config.use_env_variable], {
+    ...config,
+    logging,
+  });
 } else {
   sequelize = new Sequelize(
     config.database,
@@ -41,7 +47,7 @@ if (config.use_env_variable) {
     config.password,
     {
       ...config,
-      // logging: console.log,
+      logging,
     }
   );
 }

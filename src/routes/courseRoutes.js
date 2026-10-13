@@ -13,8 +13,11 @@ import {
 
 import { authenticate } from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
+import { numericParams } from "../middleware/validateParams.js";
 
 const router = express.Router();
+
+numericParams(router, "id", "courseId", "instructorId");
 
 // STUDENT
 router.get(

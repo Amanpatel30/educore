@@ -9,8 +9,8 @@ const {
   Semester,
 } = db;
 
-export const getEnrollments = async () => {
-  return Enrollment.findAll({
+export const getEnrollments = async (pagination = null) => {
+  const { rows, count } = await Enrollment.findAndCountAll({
     include: [
       {
         model: Student,
@@ -55,5 +55,13 @@ export const getEnrollments = async () => {
     ],
 
     order: [["createdAt", "DESC"]],
+
+    ...(pagination && {
+      limit: pagination.limit,
+      offset: pagination.offset,
+      distinct: true,
+    }),
   });
+
+  return { rows, total: count };
 };

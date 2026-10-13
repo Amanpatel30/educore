@@ -6,8 +6,9 @@ import { deleteSemester } from "../services/semester/deleteSemesterService.js";
 import { openSemester } from "../services/semester/openSemesterService.js";
 import { closeSemester } from "../services/semester/closeSemesterService.js";
 
-import { ok, created, noContent } from "../utils/response.js";
+import { ok, created, noContent, okList } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { getPagination } from "../utils/pagination.js";
 
 export const createSemesterController = asyncHandler(
   async (req, res) => {
@@ -23,12 +24,11 @@ export const createSemesterController = asyncHandler(
 
 export const getSemestersController = asyncHandler(
   async (req, res) => {
-    const semesters = await getSemesters();
+    const pagination = getPagination(req.query);
 
-    return ok(res, {
-      count: semesters.length,
-      semesters,
-    });
+    const result = await getSemesters(pagination);
+
+    return okList(res, "semesters", result, pagination);
   }
 );
 

@@ -9,7 +9,7 @@ const {
   Semester,
 } = db;
 
-export const getMyEnrollments = async (userId) => {
+export const getMyEnrollments = async (userId, pagination = null) => {
   const student = await Student.findOne({
     where: {
       userId,
@@ -20,7 +20,7 @@ export const getMyEnrollments = async (userId) => {
     throw new AppError("Student profile not found", 404);
   }
 
-  return Enrollment.findAll({
+  const { rows, count } = await Enrollment.findAndCountAll({
     where: {
       studentId: student.id,
     },
@@ -55,5 +55,13 @@ export const getMyEnrollments = async (userId) => {
     ],
 
     order: [["createdAt", "DESC"]],
+
+    ...(pagination && {
+      limit: pagination.limit,
+      offset: pagination.offset,
+      distinct: true,
+    }),
   });
+
+  return { rows, total: count };
 };

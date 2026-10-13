@@ -33,6 +33,12 @@ export default (sequelize, DataTypes) => {
         allowNull: false,
       },
 
+      tabContext: {
+        type: DataTypes.STRING(64),
+        allowNull: false,
+        unique: true,
+      },
+
       expiresAt: {
         type: DataTypes.DATE,
         allowNull: false,

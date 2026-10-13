@@ -2,6 +2,31 @@ import db from "../../models/index.js";
 
 const { RolePermission, Permission } = db;
 
+/*
+ * Exported so a route whose response shape depends on the caller's permissions
+ * can ask the same question the middleware asks, without a second stack of
+ * middleware.
+ */
+export const roleHasPermission = async (roleId, permissionName) => {
+  const rolePermission = await RolePermission.findOne({
+    where: {
+      roleId,
+    },
+    include: [
+      {
+        model: Permission,
+        as: "permission",
+        where: {
+          name: permissionName,
+        },
+        attributes: [],
+      },
+    ],
+  });
+
+  return Boolean(rolePermission);
+};
+
 export const requirePermission = (permissionName) => {
   return async (req, res, next) => {
     try {
@@ -11,23 +36,7 @@ export const requirePermission = (permissionName) => {
         });
       }
 
-      const rolePermission = await RolePermission.findOne({
-        where: {
-          roleId: req.user.roleId,
-        },
-        include: [
-          {
-            model: Permission,
-            as: "permission",
-            where: {
-              name: permissionName,
-            },
-            attributes: [],
-          },
-        ],
-      });
-
-      if (!rolePermission) {
+      if (!(await roleHasPermission(req.user.roleId, permissionName))) {
         return res.status(403).json({
           message: "You do not have permission to perform this action",
         });

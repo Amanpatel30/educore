@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Op } from "sequelize";
 import db from "../../models/index.js";
 
@@ -16,12 +17,82 @@ const { User, Role, UserSession } = db;
 const REFRESH_TOKEN_DAYS =
     Number(process.env.REFRESH_TOKEN_EXPIRES_IN_DAYS) || 7;
 
+/*
+ * Every live tab is a live session, so an unbounded number of them means an
+ * unbounded number of cookies, each sent on requests to /api/auth. The oldest
+ * sessions past the limit are revoked on login; the caller clears their
+ * cookies.
+ */
+const MAX_ACTIVE_SESSIONS_PER_USER =
+    Number(process.env.MAX_ACTIVE_SESSIONS_PER_USER) || 20;
+
 const getRefreshExpiry = () => {
     const expiresAt = new Date();
 
     expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_DAYS);
 
     return expiresAt;
+};
+
+const toSessionUser = (user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.roleDetails.name,
+    status: user.status,
+});
+
+const findUserWithRole = (userId, transaction) =>
+    User.findByPk(userId, {
+        include: [
+            {
+                model: Role,
+                as: "roleDetails",
+                attributes: ["id", "name"],
+            },
+        ],
+        transaction,
+    });
+
+/*
+ * Expired rows are deleted and anything past the cap is revoked, oldest first.
+ * Returns the contexts of the sessions that were revoked so the caller can
+ * clear their cookies; the browser cannot tell those sessions are gone.
+ */
+const pruneSessions = async (userId, transaction) => {
+    await UserSession.destroy({
+        where: {
+            userId,
+            expiresAt: { [Op.lt]: new Date() },
+        },
+        transaction,
+    });
+
+    const live = await UserSession.findAll({
+        where: {
+            userId,
+            revokedAt: null,
+            expiresAt: { [Op.gt]: new Date() },
+        },
+        attributes: ["id", "tabContext"],
+        order: [["createdAt", "ASC"], ["id", "ASC"]],
+        transaction,
+    });
+
+    const excess = live.length - MAX_ACTIVE_SESSIONS_PER_USER;
+
+    if (excess <= 0) {
+        return [];
+    }
+
+    const doomed = live.slice(0, excess);
+
+    await UserSession.update(
+        { revokedAt: new Date() },
+        { where: { id: doomed.map((session) => session.id) }, transaction }
+    );
+
+    return doomed.map((session) => session.tabContext);
 };
 
 export const loginUser = async ({
@@ -63,34 +134,49 @@ export const loginUser = async ({
         throw new Error("INVALID_CREDENTIALS");
     }
 
-    const accessToken = generateAccessToken(user);
-
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = hashRefreshToken(refreshToken);
 
-    await UserSession.create({
-        userId: user.id,
-        refreshTokenHash,
-        expiresAt: getRefreshExpiry(),
-        ipAddress,
-        userAgent,
-    });
+    /*
+     * Generated here, never accepted from the client: it decides which
+     * credential a request is answered with, so a caller that could choose one
+     * could point at another tab's session.
+     */
+    const tabContext = crypto.randomUUID();
+
+    const { sessionId, revokedContexts } = await db.sequelize.transaction(
+        async (transaction) => {
+            const session = await UserSession.create(
+                {
+                    userId: user.id,
+                    refreshTokenHash,
+                    tabContext,
+                    expiresAt: getRefreshExpiry(),
+                    ipAddress,
+                    userAgent,
+                },
+                { transaction }
+            );
+
+            return {
+                sessionId: session.id,
+                revokedContexts: await pruneSessions(user.id, transaction),
+            };
+        }
+    );
 
     return {
-        accessToken,
+        accessToken: generateAccessToken(user, sessionId),
         refreshToken,
-        user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.roleDetails.name,
-            status: user.status,
-        },
+        tabContext,
+        revokedContexts,
+        user: toSessionUser(user),
     };
 };
 
 export const refreshUserToken = async ({
     refreshToken,
+    tabContext,
     ipAddress,
     userAgent,
 }) => {
@@ -99,10 +185,16 @@ export const refreshUserToken = async ({
     const transaction = await db.sequelize.transaction();
 
     try {
-        // 1. Find and lock the refresh-token session
+        /*
+         * The context is matched against the stored value, so a request cannot
+         * be answered with another tab's session even if it presents that
+         * session's cookie: every cookie the client can read belongs to some
+         * other session, and its context is not the one being asked for.
+         */
         const session = await UserSession.findOne({
             where: {
                 refreshTokenHash,
+                tabContext,
                 revokedAt: null,
                 expiresAt: {
                     [Op.gt]: new Date(),
@@ -116,70 +208,41 @@ export const refreshUserToken = async ({
             throw new Error("INVALID_REFRESH_TOKEN");
         }
 
-        // 2. Find the user separately
-        const user = await User.findByPk(session.userId, {
-            include: [
-                {
-                    model: Role,
-                    as: "roleDetails",
-                    attributes: ["id", "name"],
-                },
-            ],
-            transaction,
-        });
+        const user = await findUserWithRole(session.userId, transaction);
 
         if (!user) {
             throw new Error("INVALID_REFRESH_TOKEN");
         }
 
-        // 3. Check user's status
         if (user.status !== "ACTIVE") {
             throw new Error("ACCOUNT_INACTIVE");
         }
 
-        // 4. Revoke old refresh-token session
-        session.revokedAt = new Date();
-        session.lastUsedAt = new Date();
-
-        await session.save({
-            transaction,
-        });
-
-        // 5. Generate new refresh token
         const newRefreshToken = generateRefreshToken();
 
-        const newRefreshTokenHash =
-            hashRefreshToken(newRefreshToken);
+        /*
+         * Rotated in place rather than by revoking this row and inserting a new
+         * one. The row id is the access token's `sid`, so a new row per refresh
+         * would invalidate the caller's in-flight access tokens every time the
+         * client refreshed.
+         */
+        session.refreshTokenHash = hashRefreshToken(newRefreshToken);
+        session.expiresAt = getRefreshExpiry();
+        session.lastUsedAt = new Date();
+        session.ipAddress = ipAddress;
+        session.userAgent = userAgent;
 
-        // 6. Create new refresh-token session
-        await UserSession.create(
-            {
-                userId: user.id,
-                refreshTokenHash: newRefreshTokenHash,
-                expiresAt: getRefreshExpiry(),
-                ipAddress,
-                userAgent,
-            },
-            {
-                transaction,
-            }
-        );
+        await session.save({ transaction });
 
-        // 7. Generate new access token
-        const accessToken = generateAccessToken(user);
+        const accessToken = generateAccessToken(user, session.id);
 
         await transaction.commit();
 
         return {
             accessToken,
             refreshToken: newRefreshToken,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.roleDetails.name,
-                status: user.status,
-            },
+            tabContext,
+            user: toSessionUser(user),
         };
     } catch (error) {
         await transaction.rollback();
@@ -187,12 +250,18 @@ export const refreshUserToken = async ({
     }
 };
 
-export const logoutUser = async (refreshToken) => {
+/*
+ * The token and the context must both match. Revoking on the context alone
+ * would let anyone who learned a context log that tab out, and the context is
+ * not a secret — it travels in a response body.
+ */
+export const logoutUser = async ({ refreshToken, tabContext }) => {
     const refreshTokenHash = hashRefreshToken(refreshToken);
 
     const session = await UserSession.findOne({
         where: {
             refreshTokenHash,
+            tabContext,
             revokedAt: null,
         },
     });

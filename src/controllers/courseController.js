@@ -19,16 +19,62 @@ import { removeCourseAssignment } from "../services/course/removeCourseAssignmen
 
 
 
-import { ok, created, noContent } from "../utils/response.js";
+import { ok, created, noContent, okList } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { getPagination } from "../utils/pagination.js";
+import {
+  parseIdQuery,
+  parseSearchQuery,
+  parseStringQuery,
+} from "../utils/query.js";
+import { AppError } from "../utils/AppError.js";
+import { roleHasPermission } from "../middleware/permissionMiddleware.js";
+
+const SORT_FIELDS = ["code", "name", "credits", "capacity", "createdAt"];
+const SORT_ORDERS = ["asc", "desc"];
+const ACTIVE_FILTERS = ["true", "false", "all"];
 
 export const getCourseCatalog = asyncHandler(async (req, res) => {
-  const courses = await getCourses();
+  const pagination = getPagination(req.query);
 
-  return ok(res, {
-    count: courses.length,
-    courses,
+  const isActive = parseStringQuery(req.query.isActive, {
+    label: "isActive",
+    allowed: ACTIVE_FILTERS,
   });
+
+  /*
+   * The catalog is a student-facing list of what can be enrolled in, so the
+   * default stays active-only. Seeing retired courses is an admin need.
+   */
+  if (isActive !== undefined && isActive !== "true") {
+    if (!(await roleHasPermission(req.user.roleId, "COURSE_CREATE_UPDATE"))) {
+      throw new AppError(
+        "You do not have permission to perform this action",
+        403
+      );
+    }
+  }
+
+  const sort = parseStringQuery(req.query.sort, {
+    label: "sort",
+    allowed: SORT_FIELDS,
+  });
+  const order = parseStringQuery(req.query.order, {
+    label: "order",
+    allowed: SORT_ORDERS,
+  });
+
+  const result = await getCourses(pagination, {
+    search: parseSearchQuery(req.query.search),
+    departmentId: parseIdQuery(req.query.departmentId, "departmentId"),
+    // `all` means no filter at all; anything else is a boolean.
+    isActive:
+      isActive === "all" ? undefined : isActive === "false" ? false : true,
+    ...(sort && { sort }),
+    ...(order && { order: order.toUpperCase() }),
+  });
+
+  return okList(res, "courses", result, pagination);
 });
 
 export const createCourseController = asyncHandler(async (req, res) => {
@@ -78,12 +124,11 @@ export const assignCourseController = asyncHandler(async (req, res) => {
 
 export const getAssignedCoursesController = asyncHandler(
   async (req, res) => {
-    const courses = await getAssignedCourses(req.user.id);
+    const pagination = getPagination(req.query);
 
-    return ok(res, {
-      count: courses.length,
-      courses,
-    });
+    const result = await getAssignedCourses(req.user.id, pagination);
+
+    return okList(res, "courses", result, pagination);
   }
 );
 

@@ -1,7 +1,6 @@
 
 
 
-
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
 
@@ -58,6 +57,3 @@ export const getMyEnrollmentById = async (
 
   return enrollment;
 };
-
-
-// THIS FILE DON'T HAVE THIS getEnrollmentById BUT IN CONTROLLER IT EXPRECT THIS getEnrollmentById IT SHOULD HAVE BOTH  getEnrollmentById AND 

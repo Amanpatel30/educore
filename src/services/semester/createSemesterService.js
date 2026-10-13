@@ -1,5 +1,6 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
+import { requireDate } from "../../utils/validate.js";
 
 const { Semester } = db;
 
@@ -28,7 +29,10 @@ export const createSemester = async (data) => {
     );
   }
 
-  if (new Date(startDate) >= new Date(endDate)) {
+  const start = requireDate(startDate, "startDate");
+  const end = requireDate(endDate, "endDate");
+
+  if (new Date(start) >= new Date(end)) {
     throw new AppError(
       "startDate must be before endDate",
       400

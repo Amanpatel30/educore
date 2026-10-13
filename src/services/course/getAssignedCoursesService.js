@@ -3,7 +3,7 @@ import { AppError } from "../../utils/AppError.js";
 
 const { Course, Instructor, Department } = db;
 
-export const getAssignedCourses = async (userId) => {
+export const getAssignedCourses = async (userId, pagination = null) => {
   const instructor = await Instructor.findOne({
     where: {
       userId,
@@ -14,7 +14,7 @@ export const getAssignedCourses = async (userId) => {
     throw new AppError("Instructor profile not found", 404);
   }
 
-  return Course.findAll({
+  const { rows, count } = await Course.findAndCountAll({
     where: {
       isActive: true,
     },
@@ -40,5 +40,14 @@ export const getAssignedCourses = async (userId) => {
     ],
 
     order: [["code", "ASC"]],
+
+    // The instructor join can multiply rows, so count distinct courses.
+    ...(pagination && {
+      limit: pagination.limit,
+      offset: pagination.offset,
+      distinct: true,
+    }),
   });
+
+  return { rows, total: count };
 };
