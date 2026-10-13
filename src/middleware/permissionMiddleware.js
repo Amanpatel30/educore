@@ -27,7 +27,7 @@ export const roleHasPermission = async (roleId, permissionName) => {
   return Boolean(rolePermission);
 };
 
-export const requirePermission = (permissionName) => {
+export const requirePermission = (...permissionNames) => {
   return async (req, res, next) => {
     try {
       if (!req.user || !req.user.roleId) {
@@ -36,7 +36,16 @@ export const requirePermission = (permissionName) => {
         });
       }
 
-      if (!(await roleHasPermission(req.user.roleId, permissionName))) {
+      const permissions = permissionNames.flat();
+      let hasPermission = false;
+      for (const permissionName of permissions) {
+        if (await roleHasPermission(req.user.roleId, permissionName)) {
+          hasPermission = true;
+          break;
+        }
+      }
+
+      if (!hasPermission) {
         return res.status(403).json({
           message: "You do not have permission to perform this action",
         });

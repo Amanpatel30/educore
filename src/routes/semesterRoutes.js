@@ -21,7 +21,7 @@ numericParams(router, "id");
 router.get(
   "/",
   authenticate,
-  requirePermission("SEMESTER_OPEN_CLOSE"),
+  requirePermission("SEMESTER_OPEN_CLOSE", "OWN_ENROLLMENT_CREATE_DROP"),
   getSemestersController
 );
 
