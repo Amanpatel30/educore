@@ -161,7 +161,21 @@ export const getAssignedCoursesController = asyncHandler(
   async (req, res) => {
     const pagination = getPagination(req.query);
 
-    const result = await getAssignedCourses(req.user.id, pagination);
+    const sort = parseStringQuery(req.query.sort, {
+      label: "sort",
+      allowed: SORT_FIELDS,
+    });
+    const order = parseStringQuery(req.query.order, {
+      label: "order",
+      allowed: SORT_ORDERS,
+    });
+
+    const result = await getAssignedCourses(req.user.id, pagination, {
+      search: parseSearchQuery(req.query.search),
+      departmentId: parseIdQuery(req.query.departmentId, "departmentId"),
+      ...(sort && { sort }),
+      ...(order && { order: order.toUpperCase() }),
+    });
 
     return okList(res, "courses", result, pagination);
   }

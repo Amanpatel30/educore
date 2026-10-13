@@ -7,6 +7,7 @@ import {
   getUsersController,
   updateUserController,
 } from "../controllers/userController.js";
+import { changePassword } from "../controllers/authController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
@@ -20,6 +21,7 @@ numericParams(router, "id");
  * /me is declared first: Express matches in order, and "me" is not an id.
  */
 router.get("/me", authenticate, getCurrentUserController);
+router.put("/me/password", authenticate, changePassword);
 
 router.get(
   "/",

@@ -9,6 +9,11 @@ import { closeSemester } from "../services/semester/closeSemesterService.js";
 import { ok, created, noContent, okList } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination } from "../utils/pagination.js";
+import { parseSearchQuery, parseStringQuery } from "../utils/query.js";
+
+const SORT_FIELDS = ["name", "academicYear", "startDate", "endDate", "status", "createdAt"];
+const SORT_ORDERS = ["asc", "desc"];
+const STATUS_FILTERS = ["UPCOMING", "OPEN", "CLOSED"];
 
 export const createSemesterController = asyncHandler(
   async (req, res) => {
@@ -26,7 +31,25 @@ export const getSemestersController = asyncHandler(
   async (req, res) => {
     const pagination = getPagination(req.query);
 
-    const result = await getSemesters(pagination);
+    const sort = parseStringQuery(req.query.sort, {
+      label: "sort",
+      allowed: SORT_FIELDS,
+    });
+    const order = parseStringQuery(req.query.order, {
+      label: "order",
+      allowed: SORT_ORDERS,
+    });
+    const status = parseStringQuery(req.query.status, {
+      label: "status",
+      allowed: STATUS_FILTERS,
+    });
+
+    const result = await getSemesters(pagination, {
+      search: parseSearchQuery(req.query.search),
+      status,
+      ...(sort && { sort }),
+      ...(order && { order: order.toUpperCase() }),
+    });
 
     return okList(res, "semesters", result, pagination);
   }

@@ -2,6 +2,7 @@ import {
   loginUser,
   refreshUserToken,
   logoutUser,
+  changeUserPassword,
 } from "../services/authService.js";
 import { registerStudent } from "../services/registerStudentService.js";
 
@@ -206,4 +207,16 @@ export const register = asyncHandler(async (req, res) => {
   const user = await registerStudent(req.body);
 
   return created(res, { user }, "Student registration successful");
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  const result = await changeUserPassword({
+    userId: req.user.id,
+    currentPassword,
+    newPassword,
+  });
+
+  return res.status(200).json(result);
 });

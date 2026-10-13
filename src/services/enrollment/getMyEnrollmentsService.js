@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
 
@@ -9,7 +10,11 @@ const {
   Semester,
 } = db;
 
-export const getMyEnrollments = async (userId, pagination = null) => {
+export const getMyEnrollments = async (
+  userId,
+  pagination = null,
+  { search, status, semesterId, sort = "createdAt", order = "DESC" } = {}
+) => {
   const student = await Student.findOne({
     where: {
       userId,
@@ -20,10 +25,26 @@ export const getMyEnrollments = async (userId, pagination = null) => {
     return { rows: [], total: 0 };
   }
 
+  const where = {
+    studentId: student.id,
+  };
+
+  if (status) {
+    where.status = status;
+  }
+  if (semesterId) {
+    where.semesterId = semesterId;
+  }
+
+  if (search) {
+    where[Op.or] = [
+      { "$course.code$": { [Op.iLike]: `%${search}%` } },
+      { "$course.name$": { [Op.iLike]: `%${search}%` } },
+    ];
+  }
+
   const { rows, count } = await Enrollment.findAndCountAll({
-    where: {
-      studentId: student.id,
-    },
+    where,
 
     include: [
       {
@@ -54,7 +75,8 @@ export const getMyEnrollments = async (userId, pagination = null) => {
       },
     ],
 
-    order: [["createdAt", "DESC"]],
+    order: [[sort, order]],
+    subQuery: false,
 
     ...(pagination && {
       limit: pagination.limit,

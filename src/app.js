@@ -70,6 +70,11 @@ app.use((req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.get("/", (req, res) => {
+  const target = ALLOWED_ORIGINS[0] || "http://localhost:3001";
+  res.redirect(target);
+});
+
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",

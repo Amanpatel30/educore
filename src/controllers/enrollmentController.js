@@ -37,6 +37,15 @@ import {
 import { ok, created, okList } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getPagination } from "../utils/pagination.js";
+import {
+  parseIdQuery,
+  parseSearchQuery,
+  parseStringQuery,
+} from "../utils/query.js";
+
+const ENROLLMENT_SORT_FIELDS = ["enrollmentDate", "status", "grade", "createdAt"];
+const ENROLLMENT_SORT_ORDERS = ["asc", "desc"];
+const ENROLLMENT_STATUS_FILTERS = ["ACTIVE", "DROPPED", "COMPLETED"];
 
 /*
  * ADMIN / SUPER_ADMIN
@@ -58,7 +67,30 @@ export const getEnrollmentsController = asyncHandler(
   async (req, res) => {
     const pagination = getPagination(req.query);
 
-    const result = await getEnrollments(pagination);
+    const sort = parseStringQuery(req.query.sort, {
+      label: "sort",
+      allowed: ENROLLMENT_SORT_FIELDS,
+    });
+    const order = parseStringQuery(req.query.order, {
+      label: "order",
+      allowed: ENROLLMENT_SORT_ORDERS,
+    });
+    const status = parseStringQuery(req.query.status, {
+      label: "status",
+      allowed: ENROLLMENT_STATUS_FILTERS,
+    });
+    const semesterId = parseIdQuery(req.query.semesterId, "semesterId");
+    const courseId = parseIdQuery(req.query.courseId, "courseId");
+    const search = parseSearchQuery(req.query.search);
+
+    const result = await getEnrollments(pagination, {
+      search,
+      status,
+      semesterId,
+      courseId,
+      ...(sort && { sort }),
+      ...(order && { order: order.toUpperCase() }),
+    });
 
     return okList(res, "enrollments", result, pagination);
   }
@@ -129,9 +161,31 @@ export const getMyEnrollmentsController = asyncHandler(
   async (req, res) => {
     const pagination = getPagination(req.query);
 
+    const sort = parseStringQuery(req.query.sort, {
+      label: "sort",
+      allowed: ENROLLMENT_SORT_FIELDS,
+    });
+    const order = parseStringQuery(req.query.order, {
+      label: "order",
+      allowed: ENROLLMENT_SORT_ORDERS,
+    });
+    const status = parseStringQuery(req.query.status, {
+      label: "status",
+      allowed: ENROLLMENT_STATUS_FILTERS,
+    });
+    const semesterId = parseIdQuery(req.query.semesterId, "semesterId");
+    const search = parseSearchQuery(req.query.search);
+
     const result = await getMyEnrollments(
       req.user.id,
-      pagination
+      pagination,
+      {
+        search,
+        status,
+        semesterId,
+        ...(sort && { sort }),
+        ...(order && { order: order.toUpperCase() }),
+      }
     );
 
     return okList(res, "enrollments", result, pagination);

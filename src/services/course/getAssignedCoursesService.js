@@ -1,9 +1,14 @@
+import { Op } from "sequelize";
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
 
 const { Course, Instructor, Department } = db;
 
-export const getAssignedCourses = async (userId, pagination = null) => {
+export const getAssignedCourses = async (
+  userId,
+  pagination = null,
+  { search, departmentId, sort = "code", order = "ASC" } = {}
+) => {
   const instructor = await Instructor.findOne({
     where: {
       userId,
@@ -14,10 +19,23 @@ export const getAssignedCourses = async (userId, pagination = null) => {
     throw new AppError("Instructor profile not found", 404);
   }
 
+  const where = {
+    isActive: true,
+  };
+
+  if (departmentId) {
+    where.departmentId = departmentId;
+  }
+
+  if (search) {
+    where[Op.or] = [
+      { code: { [Op.iLike]: `%${search}%` } },
+      { name: { [Op.iLike]: `%${search}%` } },
+    ];
+  }
+
   const { rows, count } = await Course.findAndCountAll({
-    where: {
-      isActive: true,
-    },
+    where,
 
     include: [
       {
@@ -39,7 +57,7 @@ export const getAssignedCourses = async (userId, pagination = null) => {
       },
     ],
 
-    order: [["code", "ASC"]],
+    order: [[sort, order]],
 
     // The instructor join can multiply rows, so count distinct courses.
     ...(pagination && {

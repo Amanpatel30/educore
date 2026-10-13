@@ -4,7 +4,11 @@ import db from "../../models/index.js";
 
 import {
     comparePassword,
+    hashPassword,
 } from "../utils/password.js";
+
+import { requireText } from "../utils/validate.js";
+import { AppError } from "../utils/AppError.js";
 
 import {
     generateAccessToken,
@@ -273,4 +277,49 @@ export const logoutUser = async ({ refreshToken, tabContext }) => {
     session.revokedAt = new Date();
 
     await session.save();
+};
+
+export const changeUserPassword = async ({
+    userId,
+    currentPassword,
+    newPassword,
+}) => {
+    const current = requireText(currentPassword, "currentPassword");
+    const next = requireText(newPassword, "newPassword");
+
+    if (next.length < 8) {
+        throw new AppError("newPassword must be at least 8 characters", 400);
+    }
+
+    if (next.length > 72) {
+        throw new AppError("newPassword must be at most 72 characters", 400);
+    }
+
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    if (user.status !== "ACTIVE") {
+        throw new AppError("Account is inactive", 403);
+    }
+
+    const passwordValid = await comparePassword(current, user.passwordHash);
+
+    if (!passwordValid) {
+        throw new AppError("Current password is incorrect", 400);
+    }
+
+    if (current === next) {
+        throw new AppError(
+            "New password must be different from current password",
+            400
+        );
+    }
+
+    user.passwordHash = await hashPassword(next);
+    await user.save();
+
+    return { message: "Password updated successfully" };
 };

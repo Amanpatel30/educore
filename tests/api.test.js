@@ -846,6 +846,25 @@ describe("semesters", () => {
     assert.equal(res.body.totalPages, Math.ceil(res.body.total / 2));
   });
 
+  it("filters semesters by status, search, and sorting", async () => {
+    const statusRes = await admin.get("/api/semesters?status=OPEN");
+    assert.equal(statusRes.status, 200);
+    assert.ok(Array.isArray(statusRes.body.semesters));
+    for (const sem of statusRes.body.semesters) {
+      assert.equal(sem.status, "OPEN");
+    }
+
+    const searchRes = await admin.get("/api/semesters?search=Winter");
+    assert.equal(searchRes.status, 200);
+    assert.ok(searchRes.body.semesters.some((s) => s.name.includes("Winter")));
+
+    const sortRes = await admin.get("/api/semesters?sort=name&order=asc");
+    assert.equal(sortRes.status, 200);
+    const names = sortRes.body.semesters.map((s) => s.name);
+    const sorted = [...names].sort((a, b) => a.localeCompare(b));
+    assert.deepEqual(names, sorted);
+  });
+
   it("returns 404 for an unknown semester", async () => {
     const res = await admin.get("/api/semesters/999999");
 
@@ -1225,6 +1244,20 @@ describe("enrollments", () => {
     assert.equal(page.status, 200);
     assert.equal(page.body.count, 2);
     assert.ok(page.body.total >= 3);
+  });
+
+  it("filters and sorts enrollments by status and query params", async () => {
+    const activeRes = await admin.get("/api/enrollments?status=ACTIVE");
+    assert.equal(activeRes.status, 200);
+    for (const e of activeRes.body.enrollments) {
+      assert.equal(e.status, "ACTIVE");
+    }
+
+    const sortRes = await admin.get("/api/enrollments?sort=enrollmentDate&order=asc");
+    assert.equal(sortRes.status, 200);
+
+    const studentMeRes = await student.get("/api/enrollments/me?status=ACTIVE");
+    assert.equal(studentMeRes.status, 200);
   });
 
   it("lets an admin drop any enrollment", async () => {
@@ -3061,3 +3094,107 @@ describe("tab-isolated sessions", () => {
     assert.equal((await refreshTab(a.client, a.tabContext)).status, 200);
   });
 });
+
+describe("POST /api/auth/change-password & PUT /api/users/me/password", () => {
+  it("rejects unauthenticated requests", async () => {
+    const unauthed = await anon.post("/api/auth/change-password", {
+      body: { currentPassword: PASSWORD, newPassword: "NewSecretPassword123" },
+    });
+    assert.equal(unauthed.status, 401);
+
+    const unauthedPut = await anon.put("/api/users/me/password", {
+      body: { currentPassword: PASSWORD, newPassword: "NewSecretPassword123" },
+    });
+    assert.equal(unauthedPut.status, 401);
+  });
+
+  it("rejects missing or invalid inputs", async () => {
+    const res = await student.post("/api/auth/change-password", {
+      body: { currentPassword: "", newPassword: "Short" },
+    });
+    assert.equal(res.status, 400);
+
+    const res2 = await student.post("/api/auth/change-password", {
+      body: { currentPassword: PASSWORD, newPassword: "Short" },
+    });
+    assert.equal(res2.status, 400);
+    assert.match(res2.body.message, /at least 8 characters/i);
+  });
+
+  it("rejects incorrect current password", async () => {
+    const res = await student.post("/api/auth/change-password", {
+      body: { currentPassword: "WrongPassword123", newPassword: "NewSecretPassword123" },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /incorrect/i);
+  });
+
+  it("rejects new password matching current password", async () => {
+    const res = await student.post("/api/auth/change-password", {
+      body: { currentPassword: PASSWORD, newPassword: PASSWORD },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /different/i);
+  });
+
+  it("updates password and allows login with the new password", async () => {
+    // Create a temporary student user through registration
+    const tempEmail = `pwdchange_${Date.now()}@test.edu`;
+    const regRes = await anon.post("/api/auth/register", {
+      body: {
+        name: "Password Change Test",
+        email: tempEmail,
+        password: "InitialPassword123",
+      },
+    });
+    assert.equal(regRes.status, 201);
+
+    // Login with initial password
+    const tempClient = createClient(baseUrl);
+    const loginRes = await tempClient.post("/api/auth/login", {
+      body: { email: tempEmail, password: "InitialPassword123" },
+    });
+    assert.equal(loginRes.status, 200);
+    tempClient.setToken(loginRes.body.accessToken);
+
+    // Change password via POST /api/auth/change-password
+    const changeRes = await tempClient.post("/api/auth/change-password", {
+      body: {
+        currentPassword: "InitialPassword123",
+        newPassword: "BrandNewPassword456",
+      },
+    });
+    assert.equal(changeRes.status, 200);
+    assert.match(changeRes.body.message, /success/i);
+
+    // Old password should now fail
+    const oldLoginRes = await anon.post("/api/auth/login", {
+      body: { email: tempEmail, password: "InitialPassword123" },
+    });
+    assert.equal(oldLoginRes.status, 401);
+
+    // New password succeeds
+    const newLoginRes = await anon.post("/api/auth/login", {
+      body: { email: tempEmail, password: "BrandNewPassword456" },
+    });
+    assert.equal(newLoginRes.status, 200);
+
+    // Also test PUT /api/users/me/password
+    const tempClient2 = createClient(baseUrl);
+    tempClient2.setToken(newLoginRes.body.accessToken);
+    const changeRes2 = await tempClient2.put("/api/users/me/password", {
+      body: {
+        currentPassword: "BrandNewPassword456",
+        newPassword: "FinalPassword789",
+      },
+    });
+    assert.equal(changeRes2.status, 200);
+
+    // Login with FinalPassword789 succeeds
+    const finalLoginRes = await anon.post("/api/auth/login", {
+      body: { email: tempEmail, password: "FinalPassword789" },
+    });
+    assert.equal(finalLoginRes.status, 200);
+  });
+});
+
