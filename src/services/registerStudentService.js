@@ -2,10 +2,10 @@ import { UniqueConstraintError, ValidationError } from "sequelize";
 import db from "../../models/index.js";
 import { AppError } from "../utils/AppError.js";
 import { hashPassword } from "../utils/password.js";
-import { requireId, requireText } from "../utils/validate.js";
+import { requireText } from "../utils/validate.js";
 import { toPublicUser } from "./user/toPublicUser.js";
 
-const { User, Role, Student, Department, sequelize } = db;
+const { User, Role, sequelize } = db;
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -84,20 +84,6 @@ const readName = (value) => {
   return name;
 };
 
-const loadDepartment = async (id, transaction) => {
-  const department = await Department.findByPk(id, { transaction });
-
-  if (!department) {
-    throw new AppError("Department not found", 404);
-  }
-
-  if (!department.isActive) {
-    throw new AppError("Department is not open for registration", 400);
-  }
-
-  return department;
-};
-
 /*
  * The role is looked up by name and never taken from the request, so no request
  * shape can produce an ADMIN, SUPER_ADMIN or INSTRUCTOR here.
@@ -114,12 +100,6 @@ const loadStudentRole = async (transaction) => {
 
   return role;
 };
-
-/*
- * Derived from the primary key, which is unique and already assigned, so the
- * code cannot collide and no retry loop is needed.
- */
-const studentCodeFor = (userId) => `STU${String(userId).padStart(5, "0")}`;
 
 const asConflict = (error) => {
   if (error instanceof UniqueConstraintError) {
@@ -148,7 +128,6 @@ export const registerStudent = async (body) => {
   const name = readName(body.name);
   const email = readEmail(body.email);
   const password = readPassword(body.password);
-  const departmentId = requireId(body.departmentId, "departmentId");
 
   try {
     return await sequelize.transaction(async (transaction) => {
@@ -159,25 +138,12 @@ export const registerStudent = async (body) => {
        */
       const role = await loadStudentRole(transaction);
 
-      await loadDepartment(departmentId, transaction);
-
       const user = await User.create(
         {
           name,
           email,
           passwordHash: await hashPassword(password),
           roleId: role.id,
-          status: "ACTIVE",
-        },
-        { transaction }
-      );
-
-      await Student.create(
-        {
-          userId: user.id,
-          departmentId,
-          studentCode: studentCodeFor(user.id),
-          admissionDate: new Date().toISOString().slice(0, 10),
           status: "ACTIVE",
         },
         { transaction }

@@ -2,6 +2,8 @@ import express from "express";
 
 import {
   getCourseCatalog,
+  getPublicCoursesController,
+  getPublicCourseByIdController,
   createCourseController,
   updateCourseController,
   getCourseByIdController,
@@ -16,6 +18,10 @@ import { requirePermission } from "../middleware/permissionMiddleware.js";
 import { numericParams } from "../middleware/validateParams.js";
 
 const router = express.Router();
+
+// PUBLIC READ-ONLY
+router.get("/public", getPublicCoursesController);
+router.get("/public/:id", getPublicCourseByIdController);
 
 numericParams(router, "id", "courseId", "instructorId");
 

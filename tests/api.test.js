@@ -2376,13 +2376,12 @@ describe("POST /api/auth/register", () => {
     name: "Registered Student",
     email: `registered.${crypto.randomUUID()}@test.local`,
     password: "Str0ngPass!",
-    departmentId: fixtures.departmentId,
     ...overrides,
   });
 
   const register = (body) => anon.post("/api/auth/register", { body });
 
-  it("creates a student and returns only safe fields", async () => {
+  it("creates a student user and returns only safe fields", async () => {
     const body = registration();
     const res = await register(body);
 
@@ -2406,15 +2405,10 @@ describe("POST /api/auth/register", () => {
     assert.notEqual(stored.passwordHash, body.password);
 
     const profile = await db.Student.findOne({ where: { userId: stored.id } });
+    assert.equal(profile, null, "student profile must not be created at registration");
 
-    assert.ok(profile, "no student profile was created");
-    assert.equal(String(profile.departmentId), String(fixtures.departmentId));
-    assert.equal(
-      profile.studentCode,
-      `STU${String(stored.id).padStart(5, "0")}`
-    );
-    assert.equal(profile.admissionDate, new Date().toISOString().slice(0, 10));
-    assert.equal(profile.status, "ACTIVE");
+    const enrollments = await db.Enrollment.count({ where: { studentId: stored.id } });
+    assert.equal(enrollments, 0, "no enrollment row was created");
   });
 
   it("can sign in afterwards and has student access", async () => {
@@ -2433,6 +2427,11 @@ describe("POST /api/auth/register", () => {
 
     assert.equal((await client.get("/api/courses/catalog")).status, 200);
     assert.equal((await client.get("/api/users/me")).body.user.role, "STUDENT");
+
+    // Newly registered user with no Student record receives empty enrollments without error
+    const myEnrollments = await client.get("/api/enrollments/me");
+    assert.equal(myEnrollments.status, 200);
+    assert.deepEqual(myEnrollments.body.enrollments, []);
   });
 
   it("normalizes the email the way login does", async () => {
@@ -2491,12 +2490,10 @@ describe("POST /api/auth/register", () => {
       [{ name: undefined }, "name is required"],
       [{ email: undefined }, "email is required"],
       [{ password: undefined }, "password is required"],
-      [{ departmentId: undefined }, "departmentId is required"],
       [{ email: "not-an-email" }, "email must be a valid email address"],
       [{ password: "short" }, "password must be at least 8 characters"],
       [{ password: "x".repeat(73) }, "password must be at most 72 characters"],
       [{ name: "x".repeat(256) }, "name must be at most 255 characters"],
-      [{ departmentId: "12abc" }, "departmentId must be a positive integer"],
     ];
 
     for (const [overrides, message] of cases) {
@@ -2581,25 +2578,112 @@ describe("POST /api/auth/register", () => {
     assert.equal(created.body.user.role, "STUDENT");
   });
 
-  it("rejects a department that does not exist", async () => {
-    const res = await register(registration({ departmentId: 999999 }));
+  it("first valid enrollment creates the student profile and enrollment atomically", async () => {
+    const reg = registration();
+    await register(reg);
 
-    assert.equal(res.status, 404);
-    assert.equal(res.body.message, "Department not found");
-    assert.equal(res.body.user, undefined);
+    const client = createClient(baseUrl);
+    const loginRes = await client.post("/api/auth/login", {
+      body: { email: reg.email, password: reg.password },
+    });
+    assert.equal(loginRes.status, 200);
+    client.setToken(loginRes.body.accessToken);
+
+    const enrollRes = await client.post("/api/enrollments/me", {
+      body: {
+        courseId: fixtures.courseId.CSE101,
+        semesterId: fixtures.semesterId.Fall,
+      },
+    });
+    assert.equal(enrollRes.status, 201);
+    assert.equal(enrollRes.body.enrollment.status, "ACTIVE");
+
+    const user = await db.User.findOne({ where: { email: reg.email } });
+    const student = await db.Student.findOne({ where: { userId: user.id } });
+    assert.ok(student, "student profile should have been created on first enrollment");
+    assert.equal(String(student.departmentId), String(fixtures.departmentId));
+    assert.equal(student.studentCode, `STU${String(user.id).padStart(5, "0")}`);
   });
 
-  it("rejects a department that is not active", async () => {
-    const closed = await db.Department.create({
-      name: "Closed Department",
-      code: `CLSD${crypto.randomUUID().slice(0, 4)}`,
-      isActive: false,
+  it("enrollment failure rolls back student profile creation", async () => {
+    const reg = registration();
+    await register(reg);
+
+    const client = createClient(baseUrl);
+    const loginRes = await client.post("/api/auth/login", {
+      body: { email: reg.email, password: reg.password },
     });
+    client.setToken(loginRes.body.accessToken);
 
-    const res = await register(registration({ departmentId: closed.id }));
+    // Try enrolling in non-open semester Spring
+    const enrollRes = await client.post("/api/enrollments/me", {
+      body: {
+        courseId: fixtures.courseId.CSE101,
+        semesterId: fixtures.semesterId.Spring,
+      },
+    });
+    assert.equal(enrollRes.status, 400);
 
-    assert.equal(res.status, 400);
-    assert.equal(res.body.message, "Department is not open for registration");
+    const user = await db.User.findOne({ where: { email: reg.email } });
+    const student = await db.Student.findOne({ where: { userId: user.id } });
+    assert.equal(student, null, "student profile must be rolled back on enrollment failure");
+  });
+
+  it("second enrollment reuses the existing student profile", async () => {
+    const reg = registration();
+    await register(reg);
+
+    const client = createClient(baseUrl);
+    const loginRes = await client.post("/api/auth/login", {
+      body: { email: reg.email, password: reg.password },
+    });
+    client.setToken(loginRes.body.accessToken);
+
+    // First enrollment
+    const first = await client.post("/api/enrollments/me", {
+      body: {
+        courseId: fixtures.courseId.CSE101,
+        semesterId: fixtures.semesterId.Fall,
+      },
+    });
+    assert.equal(first.status, 201);
+
+    const user = await db.User.findOne({ where: { email: reg.email } });
+    const studentBefore = await db.Student.findOne({ where: { userId: user.id } });
+
+    // Second enrollment in different course
+    const second = await client.post("/api/enrollments/me", {
+      body: {
+        courseId: fixtures.courseId.CSE201,
+        semesterId: fixtures.semesterId.Fall,
+      },
+    });
+    assert.equal(second.status, 201);
+
+    const studentCount = await db.Student.count({ where: { userId: user.id } });
+    assert.equal(studentCount, 1, "should not create duplicate student profiles");
+    assert.equal(second.body.enrollment.studentId, studentBefore.id);
+  });
+
+  it("allows anonymous visitors to browse public courses and course details", async () => {
+    const listRes = await anon.get("/api/courses/public");
+    assert.equal(listRes.status, 200);
+    assert.ok(Array.isArray(listRes.body.courses));
+    assert.ok(listRes.body.courses.length > 0);
+    assert.ok(listRes.body.courses.every((c) => c.isActive === true));
+    assert.ok(listRes.body.courses[0].department?.name);
+
+    const courseId = listRes.body.courses[0].id;
+    const detailRes = await anon.get(`/api/courses/public/${courseId}`);
+    assert.equal(detailRes.status, 200);
+    assert.equal(detailRes.body.course.id, courseId);
+    assert.ok(detailRes.body.course.department?.name);
+
+    // Anonymous cannot enroll
+    const enrollAttempt = await anon.post("/api/enrollments/me", {
+      body: { courseId, semesterId: fixtures.semesterId.Fall },
+    });
+    assert.equal(enrollAttempt.status, 401);
   });
 
   it("throttles repeated registration attempts", async () => {
@@ -2642,7 +2726,6 @@ describe("tab-isolated sessions", () => {
         name: "Tab User",
         email: account.email,
         password: account.password,
-        departmentId: fixtures.departmentId,
       },
     });
 

@@ -77,6 +77,41 @@ export const getCourseCatalog = asyncHandler(async (req, res) => {
   return okList(res, "courses", result, pagination);
 });
 
+export const getPublicCoursesController = asyncHandler(async (req, res) => {
+  const pagination = getPagination(req.query);
+
+  const sort = parseStringQuery(req.query.sort, {
+    label: "sort",
+    allowed: SORT_FIELDS,
+  });
+  const order = parseStringQuery(req.query.order, {
+    label: "order",
+    allowed: SORT_ORDERS,
+  });
+
+  const result = await getCourses(pagination, {
+    search: parseSearchQuery(req.query.search),
+    departmentId: parseIdQuery(req.query.departmentId, "departmentId"),
+    isActive: true,
+    ...(sort && { sort }),
+    ...(order && { order: order.toUpperCase() }),
+  });
+
+  return okList(res, "courses", result, pagination);
+});
+
+export const getPublicCourseByIdController = asyncHandler(async (req, res) => {
+  const course = await getCourseById(req.params.id);
+
+  if (!course.isActive) {
+    throw new AppError("Course not found", 404);
+  }
+
+  return ok(res, {
+    course,
+  });
+});
+
 export const createCourseController = asyncHandler(async (req, res) => {
   const course = await createCourse(req.body);
 

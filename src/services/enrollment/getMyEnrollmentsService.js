@@ -17,7 +17,7 @@ export const getMyEnrollments = async (userId, pagination = null) => {
   });
 
   if (!student) {
-    throw new AppError("Student profile not found", 404);
+    return { rows: [], total: 0 };
   }
 
   const { rows, count } = await Enrollment.findAndCountAll({
