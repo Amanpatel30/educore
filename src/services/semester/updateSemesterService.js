@@ -1,6 +1,6 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
-import { requireDate } from "../../utils/validate.js";
+import { requireDate, requireTodayOrFutureDate } from "../../utils/validate.js";
 import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
 const { Semester, sequelize } = db;
@@ -37,7 +37,7 @@ export const updateSemester = async (id, data, actorId = null) => {
     } = data;
 
     const newStartDate =
-      startDate === undefined ? semester.startDate : requireDate(startDate, "startDate");
+      startDate === undefined ? semester.startDate : requireTodayOrFutureDate(startDate, "startDate");
     const newEndDate =
       endDate === undefined ? semester.endDate : requireDate(endDate, "endDate");
 

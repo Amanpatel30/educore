@@ -772,6 +772,20 @@ describe("semesters", () => {
     assert.equal(res.body.message, "startDate must be a valid date");
   });
 
+  it("rejects a start date earlier than today", async () => {
+    const res = await admin.post("/api/semesters", {
+      body: {
+        name: "Past Semester",
+        academicYear: "2020",
+        startDate: "2020-01-01",
+        endDate: "2020-06-01",
+      },
+    });
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.message, "startDate cannot be before today");
+  });
+
   it("rejects an end date before the start date", async () => {
     const res = await admin.post("/api/semesters", {
       body: {
@@ -809,7 +823,7 @@ describe("semesters", () => {
       body: {
         name: "Fall",
         academicYear: "2026",
-        startDate: "2026-08-01",
+        startDate: "2026-11-01",
         endDate: "2026-12-20",
       },
     });
@@ -925,40 +939,40 @@ describe("semesters", () => {
     const created = await admin.post("/api/semesters", {
       body: {
         name: "Editable",
-        academicYear: "2025",
-        startDate: "2025-01-01",
-        endDate: "2025-06-01",
+        academicYear: "2029",
+        startDate: "2029-01-01",
+        endDate: "2029-06-01",
       },
     });
 
     const id = created.body.semester.id;
 
     const res = await admin.put(`/api/semesters/${id}`, {
-      body: { name: "Edited", endDate: "2025-07-01" },
+      body: { name: "Edited", endDate: "2029-07-01" },
     });
 
     assert.equal(res.status, 200);
     assert.equal(res.body.semester.name, "Edited");
     assert.equal(
       new Date(res.body.semester.endDate).toISOString().slice(0, 10),
-      "2025-07-01"
+      "2029-07-01"
     );
     // Fields left out keep their value.
     assert.equal(
       new Date(res.body.semester.startDate).toISOString().slice(0, 10),
-      "2025-01-01"
+      "2029-01-01"
     );
 
     assert.equal((await admin.delete(`/api/semesters/${id}`)).status, 204);
   });
 
-  it("rejects a bad date or an inverted range on update", async () => {
+  it("rejects a bad date, past start date, or an inverted range on update", async () => {
     const created = await admin.post("/api/semesters", {
       body: {
         name: "Date Guards",
-        academicYear: "2024",
-        startDate: "2024-01-01",
-        endDate: "2024-06-01",
+        academicYear: "2029",
+        startDate: "2029-01-01",
+        endDate: "2029-06-01",
       },
     });
 
@@ -971,8 +985,15 @@ describe("semesters", () => {
     assert.equal(garbage.status, 400);
     assert.equal(garbage.body.message, "endDate must be a valid date");
 
+    const pastDate = await admin.put(`/api/semesters/${id}`, {
+      body: { startDate: "2020-01-01" },
+    });
+
+    assert.equal(pastDate.status, 400);
+    assert.equal(pastDate.body.message, "startDate cannot be before today");
+
     const inverted = await admin.put(`/api/semesters/${id}`, {
-      body: { startDate: "2024-07-01" },
+      body: { startDate: "2029-07-01" },
     });
 
     assert.equal(inverted.status, 400);

@@ -49,3 +49,26 @@ export const requireDate = (value, label) => {
 
   return value;
 };
+
+export const toCalendarDay = (value) => {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+export const requireTodayOrFutureDate = (value, label) => {
+  const dateVal = requireDate(value, label);
+  const calendarDay = toCalendarDay(dateVal);
+  const todayDay = toCalendarDay(new Date());
+
+  if (calendarDay < todayDay) {
+    throw new AppError(`${label} cannot be before today`, 400);
+  }
+
+  return dateVal;
+};

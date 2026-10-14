@@ -1,6 +1,6 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
-import { requireDate } from "../../utils/validate.js";
+import { requireDate, requireTodayOrFutureDate } from "../../utils/validate.js";
 import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
 const { Semester, sequelize } = db;
@@ -30,7 +30,7 @@ export const createSemester = async (data, actorId = null) => {
     );
   }
 
-  const start = requireDate(startDate, "startDate");
+  const start = requireTodayOrFutureDate(startDate, "startDate");
   const end = requireDate(endDate, "endDate");
 
   if (new Date(start) >= new Date(end)) {
