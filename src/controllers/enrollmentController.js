@@ -53,7 +53,7 @@ const ENROLLMENT_STATUS_FILTERS = ["ACTIVE", "DROPPED", "COMPLETED"];
 
 export const createEnrollmentController = asyncHandler(
   async (req, res) => {
-    const enrollment = await createEnrollment(req.body);
+    const enrollment = await createEnrollment(req.body, req.user.id);
 
     return created(
       res,
@@ -112,7 +112,8 @@ export const updateEnrollmentController = asyncHandler(
   async (req, res) => {
     const enrollment = await updateEnrollment(
       req.params.id,
-      req.body
+      req.body,
+      req.user.id
     );
 
     return ok(
@@ -126,7 +127,8 @@ export const updateEnrollmentController = asyncHandler(
 export const dropEnrollmentController = asyncHandler(
   async (req, res) => {
     const enrollment = await dropEnrollment(
-      req.params.id
+      req.params.id,
+      req.user.id
     );
 
     return ok(

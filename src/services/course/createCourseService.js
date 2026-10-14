@@ -1,9 +1,10 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
+import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
-const { Course, Department } = db;
+const { Course, Department, sequelize } = db;
 
-export const createCourse = async (data) => {
+export const createCourse = async (data, actorId = null) => {
   const { departmentId, code, name, credits, capacity } = data;
 
   if (!departmentId || !code || !name || !credits) {
@@ -13,25 +14,45 @@ export const createCourse = async (data) => {
     );
   }
 
-  const department = await Department.findByPk(departmentId);
+  return sequelize.transaction(async (transaction) => {
+    const department = await Department.findByPk(departmentId, { transaction });
 
-  if (!department) {
-    throw new AppError("Department not found", 404);
-  }
+    if (!department) {
+      throw new AppError("Department not found", 404);
+    }
 
-  const existingCourse = await Course.findOne({
-    where: { code },
-  });
+    const existingCourse = await Course.findOne({
+      where: { code },
+      transaction,
+    });
 
-  if (existingCourse) {
-    throw new AppError("Course code already exists", 409);
-  }
+    if (existingCourse) {
+      throw new AppError("Course code already exists", 409);
+    }
 
-  return Course.create({
-    departmentId,
-    code,
-    name,
-    credits,
-    capacity,
+    const course = await Course.create(
+      {
+        departmentId,
+        code,
+        name,
+        credits,
+        capacity,
+      },
+      { transaction }
+    );
+
+    if (actorId) {
+      await recordAdminOperation(
+        {
+          adminUserId: actorId,
+          operation: "CREATE_COURSE",
+          targetType: "Course",
+          targetId: course.id,
+        },
+        transaction
+      );
+    }
+
+    return course;
   });
 };

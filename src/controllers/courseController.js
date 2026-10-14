@@ -16,6 +16,9 @@ import { deleteCourse } from "../services/course/deleteCourseService.js";
 import { assignCourse } from "../services/course/assignCourseService.js";
 import { getAssignedCourses } from "../services/course/getAssignedCoursesService.js";
 import { removeCourseAssignment } from "../services/course/removeCourseAssignmentService.js";
+import { getCourseInstructors } from "../services/course/getCourseInstructorsService.js";
+import { getCourseEnrollments } from "../services/course/getCourseEnrollmentsService.js";
+import { recordGrade } from "../services/enrollment/recordGradeService.js";
 
 
 
@@ -113,7 +116,7 @@ export const getPublicCourseByIdController = asyncHandler(async (req, res) => {
 });
 
 export const createCourseController = asyncHandler(async (req, res) => {
-  const course = await createCourse(req.body);
+  const course = await createCourse(req.body, req.user.id);
 
   return created(res, {
     course,
@@ -121,7 +124,7 @@ export const createCourseController = asyncHandler(async (req, res) => {
 });
 
 export const updateCourseController = asyncHandler(async (req, res) => {
-  const course = await updateCourse(req.params.id, req.body);
+  const course = await updateCourse(req.params.id, req.body, req.user.id);
 
   return ok(res, {
     course,
@@ -138,15 +141,17 @@ export const getCourseByIdController = asyncHandler(async (req, res) => {
 });
 
 export const deleteCourseController = asyncHandler(async (req, res) => {
-  await deleteCourse(req.params.id);
+  await deleteCourse(req.params.id, req.user.id);
 
   return noContent(res);
 });
 
 export const assignCourseController = asyncHandler(async (req, res) => {
+  const courseId = req.params.courseId || req.params.id;
   const assignment = await assignCourse(
-    req.params.courseId,
-    req.body.instructorId
+    courseId,
+    req.body.instructorId,
+    req.user.id
   );
 
   return created(
@@ -156,6 +161,15 @@ export const assignCourseController = asyncHandler(async (req, res) => {
   );
 });
 
+export const getCourseInstructorsController = asyncHandler(async (req, res) => {
+  const courseId = req.params.id || req.params.courseId;
+  const instructors = await getCourseInstructors(courseId);
+
+  return okList(res, "instructors", {
+    rows: instructors,
+    total: instructors.length,
+  });
+});
 
 export const getAssignedCoursesController = asyncHandler(
   async (req, res) => {
@@ -183,12 +197,41 @@ export const getAssignedCoursesController = asyncHandler(
 
 export const removeCourseAssignmentController = asyncHandler(
   async (req, res) => {
+    const courseId = req.params.courseId || req.params.id;
     await removeCourseAssignment(
-      req.params.courseId,
-      req.params.instructorId
+      courseId,
+      req.params.instructorId,
+      req.user.id
     );
 
     return noContent(res);
   }
 );
+
+export const getCourseEnrollmentsController = asyncHandler(
+  async (req, res) => {
+    const courseId = req.params.id || req.params.courseId;
+    const enrollments = await getCourseEnrollments(courseId, req.user);
+
+    return okList(res, "enrollments", {
+      rows: enrollments,
+      total: enrollments.length,
+    });
+  }
+);
+
+export const recordGradeController = asyncHandler(async (req, res) => {
+  const courseId = req.params.courseId || req.params.id;
+  const enrollmentId = req.params.enrollmentId || req.params.id;
+  const { grade } = req.body;
+
+  const enrollment = await recordGrade({
+    courseId,
+    enrollmentId,
+    grade,
+    user: req.user,
+  });
+
+  return ok(res, { enrollment }, "Grade recorded successfully");
+});
 

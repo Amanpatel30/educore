@@ -17,7 +17,7 @@ const STATUS_FILTERS = ["UPCOMING", "OPEN", "CLOSED"];
 
 export const createSemesterController = asyncHandler(
   async (req, res) => {
-    const semester = await createSemester(req.body);
+    const semester = await createSemester(req.body, req.user.id);
 
     return created(
       res,
@@ -69,7 +69,8 @@ export const updateSemesterController = asyncHandler(
   async (req, res) => {
     const semester = await updateSemester(
       req.params.id,
-      req.body
+      req.body,
+      req.user.id
     );
 
     return ok(
@@ -82,7 +83,7 @@ export const updateSemesterController = asyncHandler(
 
 export const deleteSemesterController = asyncHandler(
   async (req, res) => {
-    await deleteSemester(req.params.id);
+    await deleteSemester(req.params.id, req.user.id);
 
     return noContent(res);
   }
@@ -90,7 +91,7 @@ export const deleteSemesterController = asyncHandler(
 
 export const openSemesterController = asyncHandler(
   async (req, res) => {
-    const semester = await openSemester(req.params.id);
+    const semester = await openSemester(req.params.id, req.user.id);
 
     return ok(
       res,
@@ -102,7 +103,7 @@ export const openSemesterController = asyncHandler(
 
 export const closeSemesterController = asyncHandler(
   async (req, res) => {
-    const semester = await closeSemester(req.params.id);
+    const semester = await closeSemester(req.params.id, req.user.id);
 
     return ok(
       res,

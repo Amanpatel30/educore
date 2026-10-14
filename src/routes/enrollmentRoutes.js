@@ -11,6 +11,7 @@ import {
   createMyEnrollmentController,
   dropMyEnrollmentController,
 } from "../controllers/enrollmentController.js";
+import { recordGradeController } from "../controllers/courseController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
@@ -99,6 +100,21 @@ router.patch(
   authenticate,
   requirePermission("ENROLLMENT_CREATE_UPDATE_DROP"),
   dropEnrollmentController
+);
+
+// Record or update grade for an enrollment
+router.patch(
+  "/:id/grade",
+  authenticate,
+  requirePermission("GRADE_CREATE_UPDATE", "ENROLLMENT_CREATE_UPDATE_DROP"),
+  recordGradeController
+);
+
+router.put(
+  "/:id/grade",
+  authenticate,
+  requirePermission("GRADE_CREATE_UPDATE", "ENROLLMENT_CREATE_UPDATE_DROP"),
+  recordGradeController
 );
 
 export default router;

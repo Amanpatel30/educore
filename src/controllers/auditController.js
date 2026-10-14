@@ -10,6 +10,7 @@ export const getAuditLogsController = asyncHandler(async (req, res) => {
   const result = await getAuditLogs({
     pagination,
     operation: parseSearchQuery(req.query.operation),
+    search: parseSearchQuery(req.query.search),
   });
 
   return okList(res, "auditLogs", result, pagination);

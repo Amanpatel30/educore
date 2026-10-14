@@ -1,12 +1,13 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
 import { requireDate } from "../../utils/validate.js";
+import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
-const { Semester } = db;
+const { Semester, sequelize } = db;
 
 const VALID_STATUSES = ["UPCOMING", "OPEN", "CLOSED"];
 
-export const createSemester = async (data) => {
+export const createSemester = async (data, actorId = null) => {
   const {
     name,
     academicYear,
@@ -39,25 +40,45 @@ export const createSemester = async (data) => {
     );
   }
 
-  const existingSemester = await Semester.findOne({
-    where: {
-      name,
-      academicYear,
-    },
-  });
+  return sequelize.transaction(async (transaction) => {
+    const existingSemester = await Semester.findOne({
+      where: {
+        name,
+        academicYear,
+      },
+      transaction,
+    });
 
-  if (existingSemester) {
-    throw new AppError(
-      "Semester already exists for this academic year",
-      409
+    if (existingSemester) {
+      throw new AppError(
+        "Semester already exists for this academic year",
+        409
+      );
+    }
+
+    const semester = await Semester.create(
+      {
+        name,
+        academicYear,
+        startDate,
+        endDate,
+        status,
+      },
+      { transaction }
     );
-  }
 
-  return Semester.create({
-    name,
-    academicYear,
-    startDate,
-    endDate,
-    status,
+    if (actorId) {
+      await recordAdminOperation(
+        {
+          adminUserId: actorId,
+          operation: "CREATE_SEMESTER",
+          targetType: "Semester",
+          targetId: semester.id,
+        },
+        transaction
+      );
+    }
+
+    return semester;
   });
 };

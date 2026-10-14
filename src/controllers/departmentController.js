@@ -36,7 +36,7 @@ export const getDepartmentByIdController = asyncHandler(
 
 export const createDepartmentController = asyncHandler(
   async (req, res) => {
-    const department = await createDepartment(req.body);
+    const department = await createDepartment(req.body, req.user.id);
 
     return created(
       res,
@@ -50,7 +50,8 @@ export const updateDepartmentController = asyncHandler(
   async (req, res) => {
     const department = await updateDepartment(
       req.params.id,
-      req.body
+      req.body,
+      req.user.id
     );
 
     return ok(
@@ -63,7 +64,7 @@ export const updateDepartmentController = asyncHandler(
 
 export const deleteDepartmentController = asyncHandler(
   async (req, res) => {
-    await deleteDepartment(req.params.id);
+    await deleteDepartment(req.params.id, req.user.id);
 
     return noContent(res);
   }

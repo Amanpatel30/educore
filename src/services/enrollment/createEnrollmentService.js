@@ -1,12 +1,13 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
+import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
 const {
   Enrollment,
   sequelize,
 } = db;
 
-export const createEnrollment = async (data) => {
+export const createEnrollment = async (data, actorId = null) => {
   const {
     studentId,
     courseId,
@@ -91,6 +92,18 @@ export const createEnrollment = async (data) => {
           throw new AppError(
             "Enrollment was created but could not be retrieved",
             500
+          );
+        }
+
+        if (actorId) {
+          await recordAdminOperation(
+            {
+              adminUserId: actorId,
+              operation: "CREATE_ENROLLMENT",
+              targetType: "Enrollment",
+              targetId: createdEnrollment.id,
+            },
+            transaction
           );
         }
 

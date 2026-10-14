@@ -1,10 +1,11 @@
 import { Op } from "sequelize";
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
+import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
-const { Department } = db;
+const { Department, sequelize } = db;
 
-export const createDepartment = async (data) => {
+export const createDepartment = async (data, actorId = null) => {
   const name =
     typeof data.name === "string" ? data.name.trim() : "";
   const code =  
@@ -14,22 +15,42 @@ export const createDepartment = async (data) => {
     throw new AppError("name and code are required", 400);
   }
 
-  const existing = await Department.findOne({
-    where: { [Op.or]: [{ name }, { code }] },
-  });
+  return sequelize.transaction(async (transaction) => {
+    const existing = await Department.findOne({
+      where: { [Op.or]: [{ name }, { code }] },
+      transaction,
+    });
 
-  if (existing) {
-    throw new AppError(
-      existing.name === name
-        ? "Department name already exists"
-        : "Department code already exists",
-      409
+    if (existing) {
+      throw new AppError(
+        existing.name === name
+          ? "Department name already exists"
+          : "Department code already exists",
+        409
+      );
+    }
+
+    const department = await Department.create(
+      {
+        name,
+        code,
+        description: data.description ?? null,
+      },
+      { transaction }
     );
-  }
 
-  return Department.create({
-    name,
-    code,
-    description: data.description ?? null,
+    if (actorId) {
+      await recordAdminOperation(
+        {
+          adminUserId: actorId,
+          operation: "CREATE_DEPARTMENT",
+          targetType: "Department",
+          targetId: department.id,
+        },
+        transaction
+      );
+    }
+
+    return department;
   });
 };

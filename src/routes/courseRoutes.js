@@ -9,8 +9,11 @@ import {
   getCourseByIdController,
   deleteCourseController,
   assignCourseController,
-   getAssignedCoursesController,
+  getAssignedCoursesController,
   removeCourseAssignmentController,
+  getCourseInstructorsController,
+  getCourseEnrollmentsController,
+  recordGradeController,
 } from "../controllers/courseController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
@@ -23,7 +26,7 @@ const router = express.Router();
 router.get("/public", getPublicCoursesController);
 router.get("/public/:id", getPublicCourseByIdController);
 
-numericParams(router, "id", "courseId", "instructorId");
+numericParams(router, "id", "courseId", "instructorId", "enrollmentId");
 
 // STUDENT
 router.get(
@@ -68,6 +71,13 @@ router.delete(
   deleteCourseController
 );
 
+router.get(
+  "/:id/instructors",
+  authenticate,
+  requirePermission("COURSE_ASSIGN"),
+  getCourseInstructorsController
+);
+
 router.post(
   "/:courseId/instructors",
   authenticate,
@@ -80,6 +90,27 @@ router.delete(
   authenticate,
   requirePermission("COURSE_ASSIGN"),
   removeCourseAssignmentController
+);
+
+router.get(
+  "/:id/enrollments",
+  authenticate,
+  requirePermission("STUDENT_ROSTER_VIEW", "ENROLLMENT_VIEW_ALL"),
+  getCourseEnrollmentsController
+);
+
+router.patch(
+  "/:courseId/enrollments/:enrollmentId/grade",
+  authenticate,
+  requirePermission("GRADE_CREATE_UPDATE", "ENROLLMENT_CREATE_UPDATE_DROP"),
+  recordGradeController
+);
+
+router.put(
+  "/:courseId/enrollments/:enrollmentId/grade",
+  authenticate,
+  requirePermission("GRADE_CREATE_UPDATE", "ENROLLMENT_CREATE_UPDATE_DROP"),
+  recordGradeController
 );
 
 export default router;

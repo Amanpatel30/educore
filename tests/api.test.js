@@ -1408,6 +1408,71 @@ describe("instructor assignments", () => {
     assert.equal(res.status, 403);
   });
 
+  it("returns an empty list when a course has no assigned instructors", async () => {
+    const res = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors`
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.count, 0);
+    assert.deepEqual(res.body.instructors, []);
+  });
+
+  it("lists assigned instructors with expected fields and no sensitive data", async () => {
+    const res = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors`
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.count, 1);
+    const assigned = res.body.instructors[0];
+    assert.equal(assigned.id, fixtures.instructorId);
+    assert.equal(assigned.employeeCode, "EMP001");
+    assert.equal(assigned.user.name, "Instructor User");
+    assert.equal(assigned.user.email, EMAILS.instructor);
+    assert.ok(assigned.CourseInstructor?.assignedAt);
+    assert.equal(assigned.user.passwordHash, undefined);
+    assert.equal(assigned.user.refreshToken, undefined);
+  });
+
+  it("returns 404 when listing instructors for an unknown course", async () => {
+    const res = await admin.get("/api/courses/999999/instructors");
+
+    assert.equal(res.status, 404);
+    assert.equal(res.body.message, "Course not found");
+  });
+
+  it("returns 400 when listing instructors with a non-numeric course id", async () => {
+    const res = await admin.get("/api/courses/notanid/instructors");
+
+    assert.equal(res.status, 400);
+  });
+
+  it("denies unauthenticated requests to list course instructors", async () => {
+    const res = await anon.get(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors`
+    );
+
+    assert.equal(res.status, 401);
+  });
+
+  it("denies a student from listing course instructors", async () => {
+    const res = await student.get(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors`
+    );
+
+    assert.equal(res.status, 403);
+  });
+
+  it("allows superAdmin to list course instructors", async () => {
+    const res = await superAdmin.get(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors`
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.count, 1);
+  });
+
   it("removes the assignment and then reports it missing", async () => {
     const removed = await admin.delete(
       `/api/courses/${fixtures.courseId.CSE101}/instructors/${fixtures.instructorId}`
@@ -1415,12 +1480,258 @@ describe("instructor assignments", () => {
 
     assert.equal(removed.status, 204);
 
+    const listAfterRemoval = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors`
+    );
+    assert.equal(listAfterRemoval.status, 200);
+    assert.equal(listAfterRemoval.body.count, 0);
+    assert.deepEqual(listAfterRemoval.body.instructors, []);
+
     const again = await admin.delete(
       `/api/courses/${fixtures.courseId.CSE101}/instructors/${fixtures.instructorId}`
     );
 
     assert.equal(again.status, 404);
     assert.equal(again.body.message, "Course assignment not found");
+  });
+
+  it("supports multiple assigned instructors on a single course", async () => {
+    const [roles] = await db.sequelize.query(`SELECT "id" FROM "Roles" WHERE "name" = 'INSTRUCTOR';`);
+    const instructorRoleId = roles[0].id;
+
+    const [userRows] = await db.sequelize.query(`
+      INSERT INTO "Users" ("name", "email", "passwordHash", "roleId", "status", "createdAt", "updatedAt")
+      VALUES ('Second Instructor', 'instructor2@test.local', 'dummyhash', ${instructorRoleId}, 'ACTIVE', NOW(), NOW())
+      RETURNING "id";
+    `);
+    const secondUserId = userRows[0].id;
+
+    const [instRows] = await db.sequelize.query(`
+      INSERT INTO "Instructors" ("userId", "departmentId", "employeeCode", "designation", "status", "createdAt", "updatedAt")
+      VALUES (${secondUserId}, ${fixtures.departmentId}, 'EMP002', 'Lecturer', 'ACTIVE', NOW(), NOW())
+      RETURNING "id";
+    `);
+    const secondInstructorId = instRows[0].id;
+
+    await admin.post(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors`,
+      { body: { instructorId: fixtures.instructorId } }
+    );
+    await admin.post(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors`,
+      { body: { instructorId: secondInstructorId } }
+    );
+
+    const res = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors`
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.count, 2);
+    assert.equal(res.body.instructors[0].employeeCode, "EMP001");
+    assert.equal(res.body.instructors[1].employeeCode, "EMP002");
+
+    // Clean up
+    await admin.delete(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors/${fixtures.instructorId}`
+    );
+    await admin.delete(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors/${secondInstructorId}`
+    );
+    await db.sequelize.query(`DELETE FROM "Instructors" WHERE "id" = ${secondInstructorId};`);
+    await db.sequelize.query(`DELETE FROM "Users" WHERE "id" = ${secondUserId};`);
+
+    const resAfter = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors`
+    );
+    assert.equal(resAfter.status, 200);
+    assert.equal(resAfter.body.count, 0);
+  });
+});
+
+describe("course rosters and grade management", () => {
+  it("returns 200 and an empty list when a course has no enrollments", async () => {
+    const res = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE999}/enrollments`
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.count, 0);
+    assert.deepEqual(res.body.enrollments, []);
+  });
+
+  it("returns 404 when querying roster for an unknown course", async () => {
+    const res = await admin.get("/api/courses/999999/enrollments");
+
+    assert.equal(res.status, 404);
+    assert.equal(res.body.message, "Course not found");
+  });
+
+  it("returns 400 when querying roster with a non-numeric course id", async () => {
+    const res = await admin.get("/api/courses/not-a-number/enrollments");
+
+    assert.equal(res.status, 400);
+  });
+
+  it("denies unauthenticated requests to view course roster", async () => {
+    const res = await anon.get(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments`
+    );
+
+    assert.equal(res.status, 401);
+  });
+
+  it("denies a student from viewing the course roster", async () => {
+    const res = await student.get(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments`
+    );
+
+    assert.equal(res.status, 403);
+  });
+
+  it("denies an unassigned instructor from viewing course roster", async () => {
+    // Currently instructor is not assigned to CSE101
+    const res = await instructor.get(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments`
+    );
+
+    assert.equal(res.status, 403);
+    assert.equal(res.body.message, "You are not assigned to teach this course");
+  });
+
+  it("allows assigned instructor to view course roster with student details and grades", async () => {
+    // Assign instructor to CSE101
+    await admin.post(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors`,
+      { body: { instructorId: fixtures.instructorId } }
+    );
+
+    const res = await instructor.get(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments`
+    );
+
+    assert.equal(res.status, 200);
+    assert.ok(res.body.count >= 1);
+    const enrollment = res.body.enrollments.find(
+      (e) => String(e.id) === String(state.studentEnrollmentId)
+    );
+    assert.ok(enrollment);
+    assert.equal(enrollment.student.studentCode, "STU001");
+    assert.equal(enrollment.student.user.name, "Student One");
+    assert.equal(enrollment.student.user.email, EMAILS.student);
+    assert.equal(enrollment.student.user.passwordHash, undefined);
+    assert.equal(enrollment.student.department.code, "CSE");
+    assert.equal(enrollment.semester.name, "Fall");
+  });
+
+  it("allows admin to view course roster without being an assigned instructor", async () => {
+    const res = await admin.get(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments`
+    );
+
+    assert.equal(res.status, 200);
+    assert.ok(res.body.count >= 1);
+  });
+
+  it("denies an unassigned instructor from recording grades", async () => {
+    const res = await instructor.patch(
+      `/api/courses/${fixtures.courseId.CSE201}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "A" } }
+    );
+
+    assert.equal(res.status, 403);
+  });
+
+  it("denies a student from recording grades", async () => {
+    const res = await student.patch(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "A" } }
+    );
+
+    assert.equal(res.status, 403);
+  });
+
+  it("rejects an invalid grade with 400", async () => {
+    const res = await instructor.patch(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "INVALID" } }
+    );
+
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /Invalid grade/);
+  });
+
+  it("rejects grade recording on an unknown enrollment with 404", async () => {
+    const res = await instructor.patch(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments/999999/grade`,
+      { body: { grade: "A" } }
+    );
+
+    assert.equal(res.status, 404);
+    assert.equal(res.body.message, "Enrollment not found");
+  });
+
+  it("rejects cross-course enrollment grade recording with 400", async () => {
+    // Assign instructor to CSE201 as well
+    await admin.post(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors`,
+      { body: { instructorId: fixtures.instructorId } }
+    );
+
+    // studentEnrollmentId belongs to CSE101, but request specifies CSE201
+    const res = await instructor.patch(
+      `/api/courses/${fixtures.courseId.CSE201}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "A" } }
+    );
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.message, "Enrollment does not belong to this course");
+
+    // Clean up CSE201 assignment
+    await admin.delete(
+      `/api/courses/${fixtures.courseId.CSE201}/instructors/${fixtures.instructorId}`
+    );
+  });
+
+  it("records and updates a grade, persisting across queries", async () => {
+    // Record grade "A"
+    const recordRes = await instructor.patch(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "A" } }
+    );
+
+    assert.equal(recordRes.status, 200);
+    assert.equal(recordRes.body.enrollment.grade, "A");
+
+    // Verify persistence via GET roster
+    const rosterRes = await instructor.get(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments`
+    );
+    const updated = rosterRes.body.enrollments.find(
+      (e) => String(e.id) === String(state.studentEnrollmentId)
+    );
+    assert.equal(updated.grade, "A");
+
+    // Update to "A-" via PUT
+    const putRes = await instructor.put(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "A-" } }
+    );
+    assert.equal(putRes.status, 200);
+    assert.equal(putRes.body.enrollment.grade, "A-");
+
+    // Admin can also update grade
+    const adminRes = await admin.patch(
+      `/api/courses/${fixtures.courseId.CSE101}/enrollments/${state.studentEnrollmentId}/grade`,
+      { body: { grade: "A+" } }
+    );
+    assert.equal(adminRes.status, 200);
+    assert.equal(adminRes.body.enrollment.grade, "A+");
+
+    // Clean up: unassign instructor from CSE101
+    await admin.delete(
+      `/api/courses/${fixtures.courseId.CSE101}/instructors/${fixtures.instructorId}`
+    );
   });
 });
 
@@ -2359,23 +2670,42 @@ describe("instructor profile updates", () => {
 });
 
 describe("audit log", () => {
-  it("records the admin changes made above", async () => {
-    const res = await admin.get("/api/audit-logs?limit=50");
+  it("records the admin changes made above across all mutation categories", async () => {
+    const res = await admin.get("/api/audit-logs?limit=100");
 
     assert.equal(res.status, 200);
     assert.ok(res.body.total > 0, "expected audit rows");
 
     const operations = res.body.auditLogs.map((row) => row.operation);
-    assert.ok(operations.includes("CREATE_USER"));
-    assert.ok(operations.includes("UPDATE_USER"));
-    assert.ok(operations.includes("UPDATE_ROLE_PERMISSIONS"));
+    assert.ok(operations.includes("CREATE_USER"), "expected CREATE_USER");
+    assert.ok(operations.includes("UPDATE_USER"), "expected UPDATE_USER");
+    assert.ok(operations.includes("UPDATE_ROLE_PERMISSIONS"), "expected UPDATE_ROLE_PERMISSIONS");
+    assert.ok(operations.includes("CREATE_COURSE"), "expected CREATE_COURSE");
+    assert.ok(operations.includes("CREATE_DEPARTMENT"), "expected CREATE_DEPARTMENT");
+    assert.ok(operations.includes("CREATE_SEMESTER"), "expected CREATE_SEMESTER");
+    assert.ok(operations.includes("CREATE_ENROLLMENT"), "expected CREATE_ENROLLMENT");
 
+    // Actor attribution
     const withActor = res.body.auditLogs.find(
       (row) => row.operation === "CREATE_USER"
     );
     assert.equal(withActor.admin.email, EMAILS.admin);
     assert.equal(withActor.targetType, "User");
     assert.ok(withActor.targetId);
+
+    const courseLog = res.body.auditLogs.find(
+      (row) => row.operation === "CREATE_COURSE"
+    );
+    assert.equal(courseLog.admin.email, EMAILS.admin);
+    assert.equal(courseLog.targetType, "Course");
+    assert.ok(courseLog.targetId);
+
+    const deptLog = res.body.auditLogs.find(
+      (row) => row.operation === "CREATE_DEPARTMENT"
+    );
+    assert.equal(deptLog.admin.email, EMAILS.admin);
+    assert.equal(deptLog.targetType, "Department");
+    assert.ok(deptLog.targetId);
   });
 
   it("paginates and filters by operation", async () => {
@@ -2392,6 +2722,42 @@ describe("audit log", () => {
     // Unpaginated list responses carry `count`, not `total`.
     assert.equal(filtered.body.count, 1);
     assert.equal(filtered.body.auditLogs[0].targetType, "Role");
+
+    // Category filter: CREATE
+    const creations = await admin.get("/api/audit-logs?operation=CREATE");
+    assert.ok(creations.body.count > 0);
+    for (const log of creations.body.auditLogs) {
+      assert.ok(
+        log.operation === "CREATE" || log.operation.startsWith("CREATE_"),
+        `Expected create operation but got ${log.operation}`
+      );
+    }
+  });
+
+  it("searches audit logs by targetType or keyword", async () => {
+    const res = await admin.get("/api/audit-logs?search=Course");
+    assert.equal(res.status, 200);
+    assert.ok(res.body.count > 0);
+    for (const log of res.body.auditLogs) {
+      const match =
+        log.operation.includes("COURSE") ||
+        log.targetType === "Course" ||
+        log.admin.email.includes("Course");
+      assert.ok(match, `Expected course match in log: ${JSON.stringify(log)}`);
+    }
+  });
+
+  it("rolls back audit log write when the business operation fails", async () => {
+    const beforeCount = (await admin.get("/api/audit-logs?operation=CREATE_COURSE")).body.count;
+
+    // Trigger failure: missing required fields
+    const failedRes = await admin.post("/api/courses", {
+      body: { code: "INVALID" },
+    });
+    assert.equal(failedRes.status, 400);
+
+    const afterCount = (await admin.get("/api/audit-logs?operation=CREATE_COURSE")).body.count;
+    assert.equal(afterCount, beforeCount, "Audit log must not be created on failed operation");
   });
 
   it("denies a student and an instructor", async () => {

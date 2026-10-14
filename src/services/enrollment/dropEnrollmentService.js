@@ -1,40 +1,59 @@
 import db from "../../../models/index.js";
 import { AppError } from "../../utils/AppError.js";
+import { recordAdminOperation } from "../audit/recordAdminOperationService.js";
 
-const { Enrollment, Semester } = db;
+const { Enrollment, Semester, sequelize } = db;
 
-export const dropEnrollment = async (id) => {
-  const enrollment = await Enrollment.findByPk(id, {
-    include: [
+export const dropEnrollment = async (id, actorId = null) => {
+  return sequelize.transaction(async (transaction) => {
+    const enrollment = await Enrollment.findByPk(id, {
+      include: [
+        {
+          model: Semester,
+          as: "semester",
+        },
+      ],
+      transaction,
+    });
+
+    if (!enrollment) {
+      throw new AppError("Enrollment not found", 404);
+    }
+
+    if (enrollment.status === "DROPPED") {
+      throw new AppError(
+        "Enrollment is already dropped",
+        409
+      );
+    }
+
+    if (enrollment.semester.status !== "OPEN") {
+      throw new AppError(
+        "Enrollment cannot be dropped after the semester is closed",
+        400
+      );
+    }
+
+    await enrollment.update(
       {
-        model: Semester,
-        as: "semester",
+        status: "DROPPED",
+        droppedAt: new Date(),
       },
-    ],
-  });
-
-  if (!enrollment) {
-    throw new AppError("Enrollment not found", 404);
-  }
-
-  if (enrollment.status === "DROPPED") {
-    throw new AppError(
-      "Enrollment is already dropped",
-      409
+      { transaction }
     );
-  }
 
-  if (enrollment.semester.status !== "OPEN") {
-    throw new AppError(
-      "Enrollment cannot be dropped after the semester is closed",
-      400
-    );
-  }
+    if (actorId) {
+      await recordAdminOperation(
+        {
+          adminUserId: actorId,
+          operation: "DROP_ENROLLMENT",
+          targetType: "Enrollment",
+          targetId: enrollment.id,
+        },
+        transaction
+      );
+    }
 
-  await enrollment.update({
-    status: "DROPPED",
-    droppedAt: new Date(),
+    return enrollment;
   });
-
-  return enrollment;
 };
